@@ -3,6 +3,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { v4 as uuidv4 } from 'uuid';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,23 +26,29 @@ app.get('/room/:id', (req, res) => {
 });
 
 io.on('connection', (socket) => {
+    socket.on('create-room', ({ roomName, username }) => {
+        const roomId = uuidv4();
+        rooms[roomId] = [{ id: socket.id, username }];
+        socket.join(roomId);
+        socket.emit('room-created', { roomId });
+    });
+
     socket.on('join-room', ({ roomId, username }) => {
         if (!rooms[roomId]) {
-            rooms[roomId] = [];
+            socket.emit('error', { message: 'Room does not exist' });
+            return;
         }
         rooms[roomId].push({ id: socket.id, username });
         socket.join(roomId);
         io.to(roomId).emit('update-users', rooms[roomId]);
 
-        // Send all existing locations to the newly joined user
-        Object.values(rooms[roomId]).forEach(user => {
-            if (user.id !== socket.id) { // Exclude the current user
+        rooms[roomId].forEach(user => {
+            if (user.location) {
                 socket.emit('receive-location', { ...user.location, username: user.username });
             }
         });
 
         socket.on('send-location', (location) => {
-            // Store location with user
             rooms[roomId] = rooms[roomId].map(user => {
                 if (user.id === socket.id) {
                     user.location = location;
@@ -57,7 +64,6 @@ io.on('connection', (socket) => {
         });
     });
 });
-
 
 server.listen(3000, () => {
     console.log('Server is running on http://localhost:3000');
