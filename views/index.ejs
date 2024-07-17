@@ -8,35 +8,17 @@
 <body>
     <h1>Create or Join a Room</h1>
     <form id="create-room-form">
-        <input type="text" id="create-room-name" placeholder="Enter room name" required>
-        <input type="text" id="create-username" placeholder="Enter your username" required>
-        <button type="submit">Create Room</button>
-    </form>
-    <form id="join-room-form">
         <input type="text" id="room-id" placeholder="Enter room ID" required>
         <input type="text" id="username" placeholder="Enter your username" required>
         <button type="submit">Join Room</button>
     </form>
-    <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
-
         document.getElementById('create-room-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const roomName = document.getElementById('create-room-name').value;
-            const username = document.getElementById('create-username').value;
-            socket.emit('create-room', { roomName, username });
-            socket.on('room-created', ({ roomId }) => {
-                window.location.href = `/room/${roomId}?username=${encodeURIComponent(username)}`;
-            });
-        });
-
-        document.getElementById('join-room-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const roomId = document.getElementById('room-id').value;
             const username = document.getElementById('username').value;
             window.location.href = `/room/${roomId}?username=${encodeURIComponent(username)}`;
         });
-    </script>
+    </script>    
 </body>
 </html>

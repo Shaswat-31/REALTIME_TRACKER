@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Real time tracker to track your current location.",
   "main": "index.js",
-  "type":"module",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,6 +12,9 @@
   "dependencies": {
     "ejs": "^3.1.10",
     "express": "^4.19.2",
-    "socket.io": "^4.7.5"
+    "http": "^0.0.1-security",
+    "path": "^0.12.7",
+    "socket.io": "^4.7.5",
+    "uuid": "^10.0.0"
   }
 }
