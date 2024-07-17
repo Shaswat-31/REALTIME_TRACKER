@@ -23,11 +23,35 @@ const socket = io();
             attribution: 'Shaswat kumar mishra'
         }).addTo(map);
 
-        socket.on('receive-location', (location) => {
-            L.marker([location.latitude, location.longitude]).addTo(map)
-                .bindPopup(location.username)
-                .openPopup();
-        });
+        // const markers={};
+        // socket.on('receive-location', (location) => {
+        //     map.setView([location.latitude,location.longitude]);
+        //     if(markers[id])
+        //         markers[id].setLatLng([location.latitude,location.longitude]);
+        //     else
+        //         markers[id]=L.marker([location.latitude,location.longitude]).addTo(map);
+        //     // L.marker([location.latitude, location.longitude]).addTo(map)
+        //     //     .bindPopup(location.username)
+        //     //     .openPopup();
+        // });
+        const markers = {};
+
+// Listen for receive-location events
+socket.on('receive-location', (location) => {
+    map.setView([location.latitude, location.longitude]);
+
+    // Check if a marker for this username already exists
+    if (markers[location.username]) {
+        // If it exists, update its position
+        markers[location.username].setLatLng([location.latitude, location.longitude]);
+    } else {
+        // If it doesn't exist, create a new marker
+        markers[location.username] = L.marker([location.latitude, location.longitude])
+            .addTo(map)
+            .bindPopup(location.username)
+            .openPopup();
+    }
+});
 
         socket.on('update-users', (users) => {
             const userDropdown = document.getElementById('user-dropdown');
