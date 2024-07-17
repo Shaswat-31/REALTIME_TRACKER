@@ -48,7 +48,7 @@ io.on('connection', (socket) => {
                 }
                 return user;
             });
-            io.to(roomId).emit('receive-location', { ...location, username });
+            io.to(roomId).emit('Dont-update-location', { ...location, username });
         });
 
         socket.on('disconnect', () => {
