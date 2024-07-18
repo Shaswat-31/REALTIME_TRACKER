@@ -33,13 +33,15 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         io.to(roomId).emit('update-users', { users: rooms[roomId], roomId });
 
+        // Send all existing locations to the newly joined user
         rooms[roomId].forEach(user => {
-            if (user.id !== socket.id && user.location) {
+            if (user.id !== socket.id && user.location) { // Exclude the current user and only send if location exists
                 socket.emit('receive-location', { ...user.location, username: user.username, roomId });
             }
         });
 
         socket.on('send-location', (location) => {
+            // Store location with user
             rooms[roomId] = rooms[roomId].map(user => {
                 if (user.id === socket.id) {
                     user.location = location;
@@ -56,8 +58,10 @@ io.on('connection', (socket) => {
         });
 
         socket.on('disconnect', () => {
-            rooms[roomId] = rooms[roomId].filter(user => user.id !== socket.id);
-            io.to(roomId).emit('update-users', { users: rooms[roomId], roomId });
+            Object.keys(rooms).forEach(roomId => {
+                rooms[roomId] = rooms[roomId].filter(user => user.id !== socket.id);
+                io.to(roomId).emit('update-users', { users: rooms[roomId], roomId });
+            });
         });
     });
 });
