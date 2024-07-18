@@ -31,29 +31,33 @@ io.on('connection', (socket) => {
         }
         rooms[roomId].push({ id: socket.id, username });
         socket.join(roomId);
-        io.to(roomId).emit('update-users', rooms[roomId]);
+        io.to(roomId).emit('update-users', { users: rooms[roomId], roomId });
 
-        // Send all existing locations to the newly joined user
         rooms[roomId].forEach(user => {
-            if (user.id !== socket.id && user.location) { // Exclude the current user and only send if location exists
-                socket.emit('receive-location', { ...user.location, username: user.username });
+            if (user.id !== socket.id && user.location) {
+                socket.emit('receive-location', { ...user.location, username: user.username, roomId });
             }
         });
 
         socket.on('send-location', (location) => {
-            // Store location with user
             rooms[roomId] = rooms[roomId].map(user => {
                 if (user.id === socket.id) {
                     user.location = location;
                 }
                 return user;
             });
-            io.to(roomId).emit('receive-location', { ...location, username });
+            io.to(roomId).emit('receive-location', { ...location, username, roomId });
+        });
+
+        socket.on('leave-room', ({ roomId, username }) => {
+            rooms[roomId] = rooms[roomId].filter(user => user.id !== socket.id);
+            io.to(roomId).emit('update-users', { users: rooms[roomId], roomId });
+            socket.leave(roomId);
         });
 
         socket.on('disconnect', () => {
             rooms[roomId] = rooms[roomId].filter(user => user.id !== socket.id);
-            io.to(roomId).emit('update-users', rooms[roomId]);
+            io.to(roomId).emit('update-users', { users: rooms[roomId], roomId });
         });
     });
 });

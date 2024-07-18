@@ -1,14 +1,17 @@
 const socket = io();
-const roomId = '<%= roomId %>';
+let currentRoomId = '<%= roomId %>';
 const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get('username');
 
-socket.emit('join-room', { roomId, username });
+function joinRoom(roomId) {
+    socket.emit('join-room', { roomId, username });
+    currentRoomId = roomId;
+}
 
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition((position) => {
         const { latitude, longitude } = position.coords;
-        socket.emit('send-location', { latitude, longitude });
+        socket.emit('send-location', { latitude, longitude, roomId: currentRoomId });
     }, (error) => {
         console.error(error);
     }, {
@@ -23,23 +26,30 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: 'Shaswat kumar mishra'
 }).addTo(map);
 
-const markers = {};
-
-// Flag to check if the map has been centralized
+let markers = {};
 let mapCentralized = false;
 
-// Listen for receive-location events
+function clearPreviousData() {
+    for (const username in markers) {
+        map.removeLayer(markers[username]);
+    }
+    markers = {};
+    mapCentralized = false;
+    const userDropdown = document.getElementById('user-dropdown');
+    userDropdown.innerHTML = '';
+}
+
 socket.on('receive-location', (location) => {
+    if (location.roomId !== currentRoomId) return;
+
     if (!mapCentralized) {
-        map.setView([location.latitude, location.longitude], 15); // Set initial view
+        map.setView([location.latitude, location.longitude], 15);
         mapCentralized = true;
     }
 
     if (markers[location.username]) {
-        // If it exists, update its position
         markers[location.username].setLatLng([location.latitude, location.longitude]);
     } else {
-        // If it doesn't exist, create a new marker
         markers[location.username] = L.marker([location.latitude, location.longitude])
             .addTo(map)
             .bindPopup(location.username)
@@ -47,7 +57,9 @@ socket.on('receive-location', (location) => {
     }
 });
 
-socket.on('update-users', (users) => {
+socket.on('update-users', ({ users, roomId }) => {
+    if (roomId !== currentRoomId) return;
+
     const userDropdown = document.getElementById('user-dropdown');
     userDropdown.innerHTML = '';
     users.forEach(user => {
@@ -56,6 +68,7 @@ socket.on('update-users', (users) => {
         option.textContent = user.username;
         userDropdown.appendChild(option);
     });
+
     userDropdown.addEventListener('change', () => {
         const selectedUsername = userDropdown.value;
         const selectedUser = users.find(user => user.username === selectedUsername);
@@ -65,4 +78,15 @@ socket.on('update-users', (users) => {
             map.setView([latitude, longitude], 15);
         }
     });
+});
+
+joinRoom(currentRoomId);
+
+document.getElementById('room-select').addEventListener('change', (event) => {
+    const newRoomId = event.target.value;
+    if (newRoomId !== currentRoomId) {
+        socket.emit('leave-room', { roomId: currentRoomId, username });
+        clearPreviousData();
+        joinRoom(newRoomId);
+    }
 });
