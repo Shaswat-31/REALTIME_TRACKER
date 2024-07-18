@@ -33,19 +33,20 @@ const getUsersInRoom = (roomId) => {
   for (const userId of room) {
     const user = connectedUsers.find(user => user.id === userId);
     if (user) {
-      users.push({ id: user.id, username: user.username });
+      users.push({ id: user.id, username: user.username, location: rooms[roomId].find(r => r.id === userId)?.location }); // Access location from rooms object
     }
   }
   return users;
 };
 
 io.on('connection', (socket) => {
-  // Store connecting user information
+  // Store connecting user information (including username retrieved from handshake)
   connectedUsers.push({ id: socket.id, username: socket.handshake.auth.username });
 
-  socket.on('join-room', ({ roomId, username }) => {
+  socket.on('join-room', ({ roomId }) => {
     if (!io.sockets.adapter.rooms.get(roomId)) {
       io.sockets.adapter.rooms.set(roomId, new Set()); // Use a Set to store unique user IDs
+      rooms[roomId] = []; // Initialize empty array for room user data (including location)
     }
 
     // Add user to room
@@ -63,17 +64,17 @@ io.on('connection', (socket) => {
     });
 
     socket.on('send-location', (location) => {
-      // Store location with user
+      // Store location with user in rooms object
       rooms[roomId] = rooms[roomId].map(user => {
         if (user.id === socket.id) {
-          user.location = location;
+          return { ...user, location };
         }
         return user;
       });
-      io.to(roomId).emit('receive-location', { ...location, username, roomId });
+      io.to(roomId).emit('receive-location', { ...location, username: connectedUsers.find(u => u.id === socket.id).username, roomId });
     });
 
-    socket.on('leave-room', ({ roomId, username }) => {
+    socket.on('leave-room', ({ roomId }) => {
       rooms[roomId] = rooms[roomId].filter(user => user.id !== socket.id);
       io.to(roomId).emit('update-users', { users: rooms[roomId], roomId });
       socket.leave(roomId);
