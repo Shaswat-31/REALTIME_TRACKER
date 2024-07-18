@@ -85,4 +85,16 @@ socket.on('Dont-update-location', (location) => {
                 }
             });
         });
-        //bhai bhai
+        socket.on('Dont-update-location', (location) => {
+            // Check if a marker for this username already exists
+            if (markers[location.username]) {
+                // If it exists, update its position
+                markers[location.username].setLatLng([location.latitude, location.longitude]);
+            } else {
+                // If it doesn't exist, create a new marker
+                markers[location.username] = L.marker([location.latitude, location.longitude])
+                    .addTo(map)
+                    .bindPopup(location.username)
+                    .openPopup();
+            }
+        });
