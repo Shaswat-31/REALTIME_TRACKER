@@ -1,17 +1,14 @@
 const socket = io();
-let currentRoomId = '<%= roomId %>';
+const roomId = '<%= roomId %>';
 const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get('username');
 
-function joinRoom(roomId) {
-    socket.emit('join-room', { roomId, username });
-    currentRoomId = roomId;
-}
+socket.emit('join-room', { roomId, username });
 
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition((position) => {
         const { latitude, longitude } = position.coords;
-        socket.emit('send-location', { latitude, longitude, roomId: currentRoomId });
+        socket.emit('send-location', { latitude, longitude });
     }, (error) => {
         console.error(error);
     }, {
@@ -23,68 +20,42 @@ if (navigator.geolocation) {
 
 const map = L.map('map').setView([0, 0], 10);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: 'Shaswat kumar mishra'
+    attribution: 'Shaswat Kumar Mishra'
 }).addTo(map);
 
-let markers = {};
-let mapCentralized = false;
+// Create an object to store markers by socket ID
+const markers = {};
 
-function clearPreviousData() {
-    for (const username in markers) {
-        map.removeLayer(markers[username]);
-    }
-    markers = {};
-    mapCentralized = false;
-    const userDropdown = document.getElementById('user-dropdown');
-    userDropdown.innerHTML = '';
-}
-
+// Listen for receive-location events
 socket.on('receive-location', (location) => {
-    if (location.roomId !== currentRoomId) return;
+    const { latitude, longitude, username, socketId } = location;
 
-    if (!mapCentralized) {
-        map.setView([location.latitude, location.longitude], 15);
-        mapCentralized = true;
+    // Center the map to the user's location
+    if (socketId === socket.id) {
+        map.setView([latitude, longitude]);
     }
 
-    if (markers[location.username]) {
-        markers[location.username].setLatLng([location.latitude, location.longitude]);
+    // Check if a marker for this socket ID already exists
+    if (markers[socketId]) {
+        // If it exists, update its position
+        markers[socketId].setLatLng([latitude, longitude]);
     } else {
-        markers[location.username] = L.marker([location.latitude, location.longitude])
+        // If it doesn't exist, create a new marker
+        markers[socketId] = L.marker([latitude, longitude])
             .addTo(map)
-            .bindPopup(location.username)
+            .bindPopup(username)
             .openPopup();
     }
 });
-        socket.on('update-users', (users) => {
-            const userDropdown = document.getElementById('user-dropdown');
-            userDropdown.innerHTML = '';
-            users.forEach(user => {
-                const option = document.createElement('option');
-                option.value = user.username;
-                option.textContent = user.username;
-                userDropdown.appendChild(option);
-            });
-            userDropdown.addEventListener('change', () => {
-                const selectedUsername = userDropdown.value;
-                const selectedUser = users.find(user => user.username === selectedUsername);
-        
-                if (selectedUser && selectedUser.location) {
-                    const { latitude, longitude } = selectedUser.location;
-                    map.setView([latitude, longitude], 15); // Set the map view to the selected user's location
-                }
-            });
-        });
-        socket.on('Dont-update-location', (location) => {
-            // Check if a marker for this username already exists
-            if (markers[location.username]) {
-                // If it exists, update its position
-                markers[location.username].setLatLng([location.latitude, location.longitude]);
-            } else {
-                // If it doesn't exist, create a new marker
-                markers[location.username] = L.marker([location.latitude, location.longitude])
-                    .addTo(map)
-                    .bindPopup(location.username)
-                    .openPopup();
-            }
-        });
+
+// Listen for update-users events
+socket.on('update-users', (users) => {
+    const userDropdown = document.getElementById('user-dropdown');
+    userDropdown.innerHTML = '';
+    users.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.username;
+        option.textContent = user.username;
+        userDropdown.appendChild(option);
+    });
+});
