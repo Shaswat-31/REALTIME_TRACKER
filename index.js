@@ -12,53 +12,84 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 const rooms = {};
+let connectedUsers = []; // Stores information about all connected users
 
 app.set('view engine', 'ejs');
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
-    res.render('index');
+  res.render('index');
 });
 
 app.get('/room/:id', (req, res) => {
-    res.render('room', { roomId: req.params.id });
+  res.render('room', { roomId: req.params.id });
 });
+
+const getUsersInRoom = (roomId) => {
+  const room = io.sockets.adapter.rooms.get(roomId);
+  if (!room) return [];
+
+  const users = [];
+  for (const userId of room) {
+    const user = connectedUsers.find(user => user.id === userId);
+    if (user) {
+      users.push({ id: user.id, username: user.username, location: rooms[roomId].find(r => r.id === userId)?.location }); // Access location from rooms object
+    }
+  }
+  return users;
+};
 
 io.on('connection', (socket) => {
-    socket.on('join-room', ({ roomId, username }) => {
-        if (!rooms[roomId]) {
-            rooms[roomId] = [];
-        }
-        rooms[roomId].push({ id: socket.id, username });
-        socket.join(roomId);
-        io.to(roomId).emit('update-users', rooms[roomId]);
+  // Store connecting user information (including username retrieved from handshake)
+  connectedUsers.push({ id: socket.id, username: socket.handshake.auth.username });
 
-        // Send all existing locations to the newly joined user
-        Object.values(rooms[roomId]).forEach(user => {
-            if (user.id !== socket.id) { // Exclude the current user
-                socket.emit('receive-location', { ...user.location, username: user.username });
-            }
-        });
+  socket.on('join-room', ({ roomId }) => {
+    if (!io.sockets.adapter.rooms.get(roomId)) {
+      io.sockets.adapter.rooms.set(roomId, new Set()); // Use a Set to store unique user IDs
+      rooms[roomId] = []; // Initialize empty array for room user data (including location)
+    }
 
-        socket.on('send-location', (location) => {
-            // Store location with user
-            rooms[roomId] = rooms[roomId].map(user => {
-                if (user.id === socket.id) {
-                    user.location = location;
-                }
-                return user;
-            });
-            io.to(roomId).emit('Dont-update-location', { ...location, username });
-        });
+    // Add user to room
+    io.sockets.adapter.rooms.get(roomId).add(socket.id);
+    socket.join(roomId);
 
-        socket.on('disconnect', () => {
-            rooms[roomId] = rooms[roomId].filter(user => user.id !== socket.id);
-            io.to(roomId).emit('update-users', rooms[roomId]);
-        });
+    // Broadcast user join to room
+    io.to(roomId).emit('update-users', { users: getUsersInRoom(roomId), roomId });
+
+    // Send all existing locations to the newly joined user
+    rooms[roomId].forEach(user => {
+      if (user.id !== socket.id && user.location) { // Exclude the current user and only send if location exists
+        socket.emit('receive-location', { ...user.location, username: user.username, roomId });
+      }
     });
+
+    socket.on('send-location', (location) => {
+      // Store location with user in rooms object
+      rooms[roomId] = rooms[roomId].map(user => {
+        if (user.id === socket.id) {
+          return { ...user, location };
+        }
+        return user;
+      });
+      io.to(roomId).emit('receive-location', { ...location, username: connectedUsers.find(u => u.id === socket.id).username, roomId });
+    });
+
+    socket.on('leave-room', ({ roomId }) => {
+      rooms[roomId] = rooms[roomId].filter(user => user.id !== socket.id);
+      io.to(roomId).emit('update-users', { users: rooms[roomId], roomId });
+      socket.leave(roomId);
+    });
+
+    socket.on('disconnect', () => {
+      connectedUsers = connectedUsers.filter(user => user.id !== socket.id);
+      Object.keys(rooms).forEach(roomId => {
+        rooms[roomId] = rooms[roomId].filter(user => user.id !== socket.id);
+        io.to(roomId).emit('update-users', { users: rooms[roomId], roomId });
+      });
+    });
+  });
 });
 
-
 server.listen(3000, () => {
-    console.log('Server is running on http://localhost:3000');
+  console.log('Server is running on http://localhost:3000');
 });
