@@ -34,8 +34,8 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('update-users', rooms[roomId]);
 
         // Send all existing locations to the newly joined user
-        Object.values(rooms[roomId]).forEach(user => {
-            if (user.id !== socket.id) { // Exclude the current user
+        rooms[roomId].forEach(user => {
+            if (user.id !== socket.id && user.location) { // Exclude the current user and only send if location exists
                 socket.emit('receive-location', { ...user.location, username: user.username });
             }
         });
@@ -48,7 +48,7 @@ io.on('connection', (socket) => {
                 }
                 return user;
             });
-            io.to(roomId).emit('Dont-update-location', { ...location, username });
+            io.to(roomId).emit('receive-location', { ...location, username });
         });
 
         socket.on('disconnect', () => {
@@ -57,7 +57,6 @@ io.on('connection', (socket) => {
         });
     });
 });
-
 
 server.listen(3000, () => {
     console.log('Server is running on http://localhost:3000');
