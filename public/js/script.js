@@ -1,9 +1,8 @@
 const socket = io();
-const roomId = '<%= roomId %>';
 const urlParams = new URLSearchParams(window.location.search);
 const username = urlParams.get('username');
 
-socket.emit('join-room', { roomId, username });
+socket.emit('join', username);
 
 if (navigator.geolocation) {
     navigator.geolocation.watchPosition((position) => {
@@ -18,7 +17,7 @@ if (navigator.geolocation) {
     });
 }
 
-const map = L.map('map').setView([0, 0], 10);
+const map = L.map('map').setView([0, 0], 2);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: 'Shaswat Kumar Mishra'
 }).addTo(map);
@@ -32,7 +31,7 @@ socket.on('receive-location', (location) => {
 
     // Center the map to the user's location
     if (socketId === socket.id) {
-        map.setView([latitude, longitude]);
+        map.setView([latitude, longitude], 12);
     }
 
     // Check if a marker for this socket ID already exists
@@ -54,8 +53,17 @@ socket.on('update-users', (users) => {
     userDropdown.innerHTML = '';
     users.forEach(user => {
         const option = document.createElement('option');
-        option.value = user.username;
+        option.value = user.id;
         option.textContent = user.username;
         userDropdown.appendChild(option);
+    });
+
+    userDropdown.addEventListener('change', function() {
+        const selectedUserId = this.value;
+        const selectedUserMarker = markers[selectedUserId];
+        if (selectedUserMarker) {
+            map.setView(selectedUserMarker.getLatLng(), 12);
+            selectedUserMarker.openPopup();
+        }
     });
 });

@@ -3,22 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create Room</title>
+    <title>Enter Username</title>
+    <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-    <h1>Create or Join a Room</h1>
-    <form id="create-room-form">
-        <input type="text" id="room-id" placeholder="Enter room ID" required>
-        <input type="text" id="username" placeholder="Enter your username" required>
-        <button type="submit">Join Room</button>
-    </form>
+    <div class="container">
+        <h1>Enter your Username</h1>
+        <form id="username-form">
+            <input type="text" id="username" placeholder="Enter your username" required>
+            <button type="submit">Join</button>
+        </form>
+    </div>
     <script>
-        document.getElementById('create-room-form').addEventListener('submit', function(e) {
+        document.getElementById('username-form').addEventListener('submit', function(e) {
             e.preventDefault();
-            const roomId = document.getElementById('room-id').value;
             const username = document.getElementById('username').value;
-            window.location.href = `/room/${roomId}?username=${encodeURIComponent(username)}`;
+            window.location.href = `/map?username=${encodeURIComponent(username)}`;
         });
-    </script>    
+    </script>
 </body>
 </html>
